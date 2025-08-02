@@ -43,8 +43,10 @@ export class CalDAVClient {
               )}`
             : `Bearer ${options.auth.accessToken}`,
         "Content-Type": "application/xml; charset=utf-8",
+        "Accept-Language": "en",
       },
       timeout: options.requestTimeout || 5000,
+      adapter: "fetch",
     });
     this.prodId = options.prodId || "-//ts-dav.//CalDAV Client//EN";
     this.calendarHome = null;
