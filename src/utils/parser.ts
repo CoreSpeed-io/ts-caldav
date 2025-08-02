@@ -144,8 +144,10 @@ export const parseEvents = async (
       const dtEndProp = vevent.getFirstProperty("dtend");
 
       const isWholeDay = icalEvent.startDate.isDate;
-      const endDate =
-        icalEvent.endDate?.toJSDate() ?? icalEvent.startDate.toJSDate();
+      const startDate = new Date(icalEvent.startDate.toUnixTime() * 1000);
+      const endDate = icalEvent.endDate
+        ? new Date(icalEvent.endDate.toUnixTime() * 1000)
+        : startDate;
       const adjustedEnd = isWholeDay
         ? new Date(endDate.getTime() - 86400000)
         : endDate;
@@ -208,7 +210,7 @@ export const parseEvents = async (
       events.push({
         uid: icalEvent.uid,
         summary: icalEvent.summary || "Untitled Event",
-        start: icalEvent.startDate.toJSDate(),
+        start: startDate,
         end: adjustedEnd,
         description: icalEvent.description || undefined,
         location: icalEvent.location || undefined,
