@@ -3,49 +3,9 @@ import {
   Alarm,
   Calendar,
   Event,
-  RecurrenceRule,
   SupportedComponent,
 } from "../models";
-import ICAL from "ical.js";
-
-const normalizeParam = (
-  value: string | string[] | undefined,
-): string | undefined => {
-  if (Array.isArray(value)) {
-    return value[0]; // pick the first one
-  }
-  return value;
-};
-
-function parseRecurrence(recur: ICAL.Recur): RecurrenceRule {
-  const freqMap = {
-    DAILY: "DAILY",
-    WEEKLY: "WEEKLY",
-    MONTHLY: "MONTHLY",
-    YEARLY: "YEARLY",
-  } as const;
-  const freq = freqMap[recur.freq as keyof typeof freqMap] || undefined;
-
-  const byday = recur.parts.BYDAY
-    ? recur.parts.BYDAY.map((day: string) => day)
-    : undefined;
-  const bymonthday = recur.parts.BYMONTHDAY
-    ? recur.parts.BYMONTHDAY.map((day: number) => day)
-    : undefined;
-  const bymonth = recur.parts.BYMONTH
-    ? recur.parts.BYMONTH.map((month: number) => month)
-    : undefined;
-
-  return {
-    freq,
-    interval: recur.interval,
-    count: recur.count ? recur.count : undefined,
-    until: recur.until ? recur.until.toJSDate() : undefined,
-    byday,
-    bymonthday,
-    bymonth,
-  };
-}
+import ICAL from "node-ical";
 
 export const parseCalendars = async (
   responseData: string,
@@ -133,93 +93,58 @@ export const parseEvents = async (
     const cleanedCalendarData = rawCalendarData.replace(/&#13;/g, "\r\n");
 
     try {
-      const jcalData = ICAL.parse(cleanedCalendarData);
-      const vcalendar = new ICAL.Component(jcalData);
-      const vevent = vcalendar.getFirstSubcomponent("vevent");
-      if (!vevent) continue;
+      const jcalData = ICAL.sync.parseICS(cleanedCalendarData);
 
-      const icalEvent = new ICAL.Event(vevent);
+      const event = Object.values(jcalData).find(
+        (v) => v.type === "VEVENT",
+      );
 
-      const dtStartProp = vevent.getFirstProperty("dtstart");
-      const dtEndProp = vevent.getFirstProperty("dtend");
-
-      const isWholeDay = icalEvent.startDate.isDate;
-      const startDate = new Date(icalEvent.startDate.toUnixTime() * 1000);
-      const endDate = icalEvent.endDate
-        ? new Date(icalEvent.endDate.toUnixTime() * 1000)
-        : startDate;
-      const adjustedEnd = isWholeDay
-        ? new Date(endDate.getTime() - 86400000)
-        : endDate;
-
-      const startTzid =
-        normalizeParam(dtStartProp?.getParameter("tzid")) || undefined;
-      const endTzid =
-        normalizeParam(dtEndProp?.getParameter("tzid")) || undefined;
-
-      const rruleProp = vevent.getFirstProperty("rrule");
-      let recurrenceRule: RecurrenceRule | undefined;
-      if (rruleProp) {
-        const rrule = rruleProp.getFirstValue();
-        if (rrule) {
-          const recur = ICAL.Recur.fromString(rrule.toString());
-          recurrenceRule = parseRecurrence(recur);
-        }
-      }
+      if (!event) continue;
 
       const alarms: Alarm[] = [];
-      const valarms = vevent.getAllSubcomponents("valarm");
 
-      for (const valarm of valarms) {
-        const action = valarm.getFirstPropertyValue("action");
-        const trigger = valarm.getFirstPropertyValue("trigger")?.toString();
-
-        if (action === "DISPLAY" && trigger) {
-          alarms.push({
-            action: "DISPLAY",
-            trigger,
-            description:
-              valarm.getFirstPropertyValue("description")?.toString() ||
-              undefined,
-          });
-        } else if (action === "EMAIL" && trigger) {
-          const attendees =
-            valarm
-              .getAllProperties("attendee")
-              ?.map((p) => p.getFirstValue())
-              .filter((v): v is string => typeof v === "string") || [];
-
-          alarms.push({
-            action: "EMAIL",
-            trigger,
-            description:
-              valarm.getFirstPropertyValue("description")?.toString() ||
-              undefined,
-            summary:
-              valarm.getFirstPropertyValue("summary")?.toString() || undefined,
-            attendees,
-          });
-        } else if (action === "AUDIO" && trigger) {
-          alarms.push({
-            action: "AUDIO",
-            trigger,
-          });
+      if (event.alarms) {
+        for (const valarm of event.alarms) {
+          const action = valarm.action;
+          const trigger = valarm.trigger;
+  
+          if (action === "DISPLAY" && trigger) {
+            alarms.push({
+              action: "DISPLAY",
+              trigger,
+              description: valarm.description,
+            });
+          } else if (action === "EMAIL" && trigger) {
+  
+            alarms.push({
+              action: "EMAIL",
+              trigger,
+              description: valarm.description,
+              summary: valarm.summary,
+              attendees: valarm.attendee ? [valarm.attendee.toString()] : [],
+            });
+          } else if (action === "AUDIO" && trigger) {
+            alarms.push({
+              action: "AUDIO",
+              trigger,
+            });
+          }
         }
       }
 
       events.push({
-        uid: icalEvent.uid,
-        summary: icalEvent.summary || "Untitled Event",
-        start: startDate,
-        end: adjustedEnd,
-        description: icalEvent.description || undefined,
-        location: icalEvent.location || undefined,
+        uid: event.uid,
+        summary: event.summary || "Untitled Event",
+        start: event.start,
+        end: event.end,
+        description: event.description,
+        location: event.location,
         etag: eventData["getetag"] || "",
         href: baseUrl ? new URL(obj["href"], baseUrl).toString() : obj["href"],
-        wholeDay: isWholeDay,
-        recurrenceRule,
-        startTzid,
-        endTzid,
+        wholeDay: event.datetype === "date",
+        recurrenceRule: event.rrule,
+        startTzid: event.start.tz,
+        endTzid: event.end.tz,
         alarms,
       });
     } catch (error) {

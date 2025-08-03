@@ -266,33 +266,7 @@ export class CalDAVClient {
     event: PartialBy<Event, "uid" | "etag" | "href">,
     uid: string,
   ): string {
-    const rrule = event.recurrenceRule
-      ? `RRULE:${[
-          event.recurrenceRule.freq
-            ? `FREQ=${event.recurrenceRule.freq}`
-            : null,
-          event.recurrenceRule.interval
-            ? `INTERVAL=${event.recurrenceRule.interval}`
-            : null,
-          event.recurrenceRule.count
-            ? `COUNT=${event.recurrenceRule.count}`
-            : null,
-          event.recurrenceRule.until
-            ? `UNTIL=${formatDate(event.recurrenceRule.until)}`
-            : null,
-          event.recurrenceRule.byday
-            ? `BYDAY=${event.recurrenceRule.byday.join(",")}`
-            : null,
-          event.recurrenceRule.bymonthday
-            ? `BYMONTHDAY=${event.recurrenceRule.bymonthday.join(",")}`
-            : null,
-          event.recurrenceRule.bymonth
-            ? `BYMONTH=${event.recurrenceRule.bymonth.join(",")}`
-            : null,
-        ]
-          .filter(Boolean)
-          .join(";")}`
-      : "";
+    const rrule = event.recurrenceRule?.toString() ?? "";
 
     const dtStart =
       event.wholeDay === true

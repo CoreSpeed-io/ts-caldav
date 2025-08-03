@@ -1,6 +1,6 @@
 {
   "name": "@corespeed/ts-caldav",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "description": "A CalDAV client written in TypeScript",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -26,7 +26,8 @@
     "base-64": "^1.0.0",
     "dotenv": "^16.6.1",
     "fast-xml-parser": "^4.5.3",
-    "ical.js": "^2.2.0",
+    "node-ical": "^0.20.1",
+    "rrule": "^2.8.1",
     "uuid": "^11.1.0"
   },
   "devDependencies": {

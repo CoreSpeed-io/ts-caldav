@@ -1,3 +1,5 @@
+import { RRule } from "rrule";
+
 export interface CalDAVOptions {
   baseUrl: string;
   auth: AuthOptions;
@@ -16,16 +18,6 @@ export type SupportedComponent =
   | "VJOURNAL"
   | "VFREEBUSY"
   | "VTIMEZONE";
-
-export type RecurrenceRule = {
-  freq?: "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
-  interval?: number;
-  count?: number;
-  until?: Date;
-  byday?: string[];
-  bymonthday?: number[];
-  bymonth?: number[];
-};
 
 export type Alarm =
   | {
@@ -75,7 +67,7 @@ export interface Event {
   etag: string;
   href: string;
   wholeDay?: boolean;
-  recurrenceRule?: RecurrenceRule;
+  recurrenceRule?: RRule;
   startTzid?: string;
   endTzid?: string;
   alarms?: Alarm[];
